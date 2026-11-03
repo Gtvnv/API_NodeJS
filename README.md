@@ -1,10 +1,24 @@
 # Gerenciador de Podcasts — API Node.js com TypeScript e HTTP Module
 
-API REST construída em **Node.js** com **TypeScript**, usando **apenas o módulo `http` nativo** — sem Express, Fastify ou qualquer framework. Projeto desenvolvido como Desafio de Projeto da [DIO](https://www.dio.me/), inspirado no repositório do expert [Felipe Aguiar](https://github.com/felipeAguiarCode/node-ts-webapi-without-frameworks-podcast-menager).
+API REST construída em **Node.js** com **TypeScript**, usando **apenas o módulo `http` nativo** — sem Express, Fastify ou qualquer framework. O objetivo é demonstrar, do zero, como estruturar uma API bem organizada (roteamento, camadas, validação, testes) sem depender de um framework web.
+
+## Sumário
+
+- [Descrição](#descrição)
+- [Funcionalidades](#funcionalidades)
+- [Endpoints](#endpoints)
+- [Arquitetura](#arquitetura)
+- [Tecnologias](#tecnologias)
+- [Como executar](#como-executar)
+- [Testes](#testes)
+- [Build de produção](#build-de-produção)
+- [Scripts disponíveis](#scripts-disponíveis)
+- [Decisões de projeto](#decisões-de-projeto)
+- [Licença](#licença)
 
 ## Descrição
 
-O Podcast Manager centraliza episódios de podcasts (em formato de vídeo) organizados por categoria, no estilo de um catálogo tipo Netflix. Permite listar todos os episódios e filtrar por nome do podcast.
+O Podcast Manager centraliza episódios de podcasts (em formato de vídeo) organizados por categoria, no estilo de um catálogo. Permite listar todos os episódios e filtrar por nome do podcast.
 
 ## Funcionalidades
 
@@ -17,9 +31,15 @@ O Podcast Manager centraliza episódios de podcasts (em formato de vídeo) organ
 
 ## Endpoints
 
+| Método | Rota | Descrição |
+| --- | --- | --- |
+| `GET` | `/health` | Verificação de saúde (status + uptime). |
+| `GET` | `/list` | Lista todos os episódios. |
+| `GET` | `/episode?podcastName={nome}` | Lista os episódios de um podcast. |
+
 ### `GET /health`
 
-Verificação de saúde da aplicação. Retorna `200` com o status e o uptime do processo.
+Retorna `200` com o status e o uptime do processo.
 
 ```json
 { "status": "ok", "uptime": 12.34 }
@@ -50,9 +70,25 @@ Retorna os episódios de um podcast específico.
 - `400` quando `podcastName` não é informado.
 - `404` quando nenhum episódio é encontrado.
 
+```json
+{ "error": "Nenhum episodio encontrado para o podcast 'xyz'." }
+```
+
 ## Arquitetura
 
 O projeto segue uma separação de responsabilidades em camadas, com a dependência apontando sempre para dentro (estilo Clean Architecture). O **Service** depende de uma **interface** de repositório, não da implementação concreta — o que desacopla a regra de negócio da fonte de dados e facilita os testes.
+
+```
+Requisição HTTP
+      │
+      ▼
+   Router ──► Controller ──► Service ──► Repository
+ (rotas,      (HTTP:        (regra de    (fonte de
+  erros,       req/res)      negócio)      dados)
+  log)
+```
+
+Estrutura de pastas:
 
 ```
 src/
@@ -81,7 +117,7 @@ src/
 └── server.test.ts                        # Testes end-to-end dos endpoints
 ```
 
-Fluxo da requisição: **Router → Controller → Service → Repository**. O `server.ts` faz a injeção manual das dependências; o `router.ts` resolve a rota com base em método + path, usando a classe `URL` nativa para ler a query string.
+O `server.ts` faz a injeção manual das dependências; o `router.ts` resolve a rota com base em método + path, usando a classe `URL` nativa para ler a query string.
 
 ## Tecnologias
 
@@ -91,20 +127,6 @@ Fluxo da requisição: **Router → Controller → Service → Repository**. O `
 - **tsx** — executa TypeScript em desenvolvimento com hot reload.
 - **tsup** — empacota o projeto para produção.
 - **@types/node** — definições de tipo do Node.
-
-## Passo a passo (como foi feito)
-
-1. Inicializei o projeto Node com `package.json` e configurei o `tsconfig.json` (modo estrito, `NodeNext`).
-2. Instalei as dependências de desenvolvimento: `typescript`, `tsx`, `tsup`, `@types/node`.
-3. Modelei o problema de negócio: um episódio de podcast (`domain/podcast.ts`).
-4. Criei o **servidor HTTP** com o módulo nativo e um **roteador** dedicado.
-5. Separei em camadas: **Controller** (HTTP), **Service** (regras) e **Repository** (dados), com o service dependendo de uma **interface**.
-6. Implementei o endpoint `GET /list`.
-7. Implementei o `GET /episode` lendo a **query string** com a classe `URL`.
-8. Adicionei **tratamento de erros** com status codes (classe `AppError`) e **constantes** para eliminar números mágicos.
-9. Acrescentei **logging** por requisição, **health check** e **graceful shutdown**.
-10. Escrevi **testes** unitários (service) e end-to-end (endpoints) com o runner nativo do Node.
-11. Documentei tudo neste README e subi o projeto para o GitHub.
 
 ## Como executar
 
@@ -155,10 +177,13 @@ npm start       # executa o build
 | `npm test` | Roda a suíte de testes. |
 | `npm run typecheck` | Verifica os tipos sem gerar saída. |
 
-## Links úteis
+## Decisões de projeto
 
-- Repositório de referência (expert): <https://github.com/felipeAguiarCode/node-ts-webapi-without-frameworks-podcast-menager>
-- [Digital Innovation One (DIO)](https://www.dio.me/)
+- **Sem framework web:** todo o roteamento e o parsing de requisição usam apenas o módulo `http` e a classe `URL` nativos, para evidenciar o que um framework normalmente abstrai.
+- **Camadas com dependência para dentro:** o service não conhece HTTP nem a origem dos dados; depende da interface `IPodcastRepository`. Trocar o mock por um banco real não exige mudança na regra de negócio.
+- **Erros como cidadãos de primeira classe:** a classe `AppError` carrega o status HTTP; o `Router` traduz isso em resposta, e qualquer erro inesperado vira `500` sem vazar detalhes.
+- **Status codes centralizados:** constantes em `http-status.ts` evitam números mágicos e dão tipagem às respostas.
+- **Testes sem dependências extras:** o `node:test` cobre service (unitário) e endpoints (e2e), mantendo o projeto enxuto.
 
 ## Licença
 
